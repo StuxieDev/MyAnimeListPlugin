@@ -337,6 +337,8 @@ public class ApiCallHelperTests {
             int randomInt = random.Next(start, end);
 
             if (!uniqueIdList.Contains(randomInt)) {
+                // Remember it, or later calls can hand out the same ID again (at most 50 IDs are needed per test).
+                uniqueIdList.Add(randomInt);
                 return randomInt;
             }
         }

@@ -6,6 +6,13 @@ All notable changes to the MyAnimeList plugin are documented here. The format is
 for later releases the same day). Jellyfin shows each version with a fourth part:
 `26.10.23` is `26.10.23.0`, `26.10.23-1` is `26.10.23.1`.
 
+## v26.10.23-1
+
+The first published release: v26.10.23 was tagged but never released, because a test failed while it was being built.
+
+### Fixed
+- A sync unit test failed at random. Its helper for making unique test IDs never remembered the IDs it gave out, so two test anime could share an ID. That stopped the v26.10.23 release from building. The plugin itself is unchanged.
+
 ## v26.10.23
 
 First release of MyAnimeList as a standalone StuxieDev project, for Jellyfin 12. It joins two of ryandash's plugins into one: [jellyfin-plugin-myanimelist](https://github.com/ryandash/jellyfin-plugin-myanimelist) 12.0.0.2 (metadata) and [jellyfin-myanimelist-sync](https://github.com/ryandash/jellyfin-myanimelist-sync) 1.6.0.2 (watch status sync, itself a fork of vosmiic's [jellyfin-ani-sync](https://github.com/vosmiic/jellyfin-ani-sync)).
