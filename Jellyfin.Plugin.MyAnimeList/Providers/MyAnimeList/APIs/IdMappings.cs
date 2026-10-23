@@ -1,0 +1,110 @@
+using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace Jellyfin.Plugin.MyAnimeList.Providers.MyAnimeList.APIs
+{
+    public class IdMappings
+    {
+        private readonly string _baseUrl = "https://github-checker-worker.ryandash0.workers.dev/";
+        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly JsonSerializerOptions _options = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        };
+        private static readonly ConcurrentDictionary<string, Task<List<MappingEntry>>> _mappingCache = new();
+
+        public IdMappings(IHttpClientFactory httpClientFactory)
+        {
+            _httpClientFactory = httpClientFactory;
+        }
+
+        private class MappingEntry
+        {
+            [JsonPropertyName("myanimelist url")]
+            public string MalUrl { get; set; }
+
+            [JsonPropertyName("myanimelist")]
+            public long? MalId { get; set; }
+        }
+
+        private async Task<List<MappingEntry>> GetMappingsAsync(ILogger log, string tvdbId, CancellationToken token)
+        {
+            return await _mappingCache.GetOrAdd(tvdbId, _ => FetchMappingsAsync(log, tvdbId, token));
+        }
+
+        private async Task<List<MappingEntry>> FetchMappingsAsync(ILogger log, string tvdbId, CancellationToken token)
+        {
+            var url = $"{_baseUrl}thetvdb-episodes?id={tvdbId}";
+
+            try
+            {
+                var client = _httpClientFactory.CreateClient(ProviderNames.MyAnimeList);
+                using var stream = await client.GetStreamAsync(url, token)
+                    .ConfigureAwait(false);
+
+                var result = await JsonSerializer.DeserializeAsync<List<MappingEntry>>(
+                    stream,
+                    _options,
+                    token
+                ).ConfigureAwait(false);
+
+                return result ?? new List<MappingEntry>();
+            }
+            catch (Exception ex)
+            {
+                log.LogInformation($"Error fetching mappings from {url}: {ex.Message}");
+                return new List<MappingEntry>();
+            }
+        }
+
+        public class AnimeEpisodeMapping
+        {
+            public long? MalId { get; set; }
+            public int? Episode { get; set; }
+        }
+
+        private static int? ExtractMalEpisode(string malUrl)
+        {
+            if (string.IsNullOrEmpty(malUrl))
+                return null;
+
+            var idx = malUrl.IndexOf("/episode/", StringComparison.OrdinalIgnoreCase);
+            if (idx < 0)
+                return null;
+
+            idx += 9; // length of "/episode/"
+
+            int end = malUrl.IndexOf('/', idx);
+            if (end < 0) end = malUrl.Length;
+
+            return int.TryParse(malUrl.AsSpan(idx, end - idx), out var ep)
+                ? ep
+                : null;
+        }
+
+        public async Task<AnimeEpisodeMapping> GetAnimeEpisodeMappingAsync(ILogger log, string tvdbId, CancellationToken token)
+        {
+            var mappings = await GetMappingsAsync(log, tvdbId, token).ConfigureAwait(false);
+            var entry = mappings.FirstOrDefault();
+            if (entry is null)
+            {
+                log.LogInformation($"No mapping found for TVDB ID: {tvdbId}");
+                return null;
+            }
+
+            return new AnimeEpisodeMapping
+            {
+                MalId = entry.MalId,
+                Episode = ExtractMalEpisode(entry.MalUrl)
+            };
+        }
+    }
+}

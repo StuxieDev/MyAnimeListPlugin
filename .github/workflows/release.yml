@@ -1,0 +1,160 @@
+name: Publish Release
+
+# Trigger on Date Version tags like v26.10.23 or v26.10.23-1 (https://datevers.ing)
+on:
+  push:
+    tags:
+      - 'v[0-9][0-9].[0-9][0-9].[0-9][0-9]'
+      - 'v[0-9][0-9].[0-9][0-9].[0-9][0-9]-*'
+
+permissions:
+  contents: write  # needed to create releases
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout ─────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Derive version from the pushed tag ──────────────────────────────
+      - name: Extract version
+        id: version
+        run: |
+          # tag = v26.10.23    →  TAG_VERSION = 26.10.23 (tags, releases, zip name)
+          #                    →  JELLYFIN_VERSION = 26.10.23.0 (meta.json, manifest.json, assembly)
+          # tag = v26.10.23-1  →  TAG_VERSION = 26.10.23-1, JELLYFIN_VERSION = 26.10.23.1
+          # Jellyfin's API always reports installed plugin versions with four parts and its plugin-image
+          # lookup compares versions exactly, so a three-part meta.json version makes the banner 404.
+          # Assembly versions can't contain "-", so the build uses the four-part form too.
+          TAG="${GITHUB_REF#refs/tags/v}"
+          DATE="${TAG%%-*}"
+          SAME_DAY=0
+          if [[ "$TAG" == *-* ]]; then SAME_DAY="${TAG#*-}"; fi
+          echo "TAG_VERSION=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "JELLYFIN_VERSION=${DATE}.${SAME_DAY}" >> "$GITHUB_OUTPUT"
+          echo "ZIP_NAME=jellyfin-myanimelist_${TAG}.zip" >> "$GITHUB_OUTPUT"
+
+      # ── 3. Patch the version in meta.json before building ──────────────────
+      - name: Update meta.json version
+        run: |
+          python3 - << 'PYEOF'
+          import json, os, sys
+          path = "Jellyfin.Plugin.MyAnimeList/meta.json"
+          with open(path) as f:
+              data = json.load(f)
+          data["version"] = os.environ["VERSION"]
+          with open(path, "w") as f:
+              json.dump(data, f, indent=2)
+              f.write("\n")
+          PYEOF
+        env:
+          VERSION: ${{ steps.version.outputs.JELLYFIN_VERSION }}
+
+      # ── 4. Setup .NET 10 ───────────────────────────────────────────────────
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # ── 5. Unit tests (all but MyAnimeListTests, which call the live Jikan API) ──
+      - name: Run tests
+        run: dotnet test TestProject/TestProject.csproj -c Release --filter "FullyQualifiedName!~UnitTestProject.MyAnimeListTests"
+
+      # ── 5b. Build & publish (Release) ──────────────────────────────────────
+      - name: Publish plugin
+        run: |
+          dotnet publish Jellyfin.Plugin.MyAnimeList/Jellyfin.Plugin.MyAnimeList.csproj \
+            -c Release \
+            --no-self-contained \
+            -p:Version=${{ steps.version.outputs.JELLYFIN_VERSION }} \
+            -p:AssemblyVersion=${{ steps.version.outputs.JELLYFIN_VERSION }} \
+            -p:FileVersion=${{ steps.version.outputs.JELLYFIN_VERSION }} \
+            -p:InformationalVersion=${{ steps.version.outputs.TAG_VERSION }} \
+            -o publish/
+
+      # ── 6. Bundle DLLs + meta.json + banner into a ZIP ────────────────────
+      # The plugin's own DLL plus the three libraries Jellyfin doesn't ship.
+      - name: Create release ZIP
+        run: |
+          cp Jellyfin.Plugin.MyAnimeList/meta.json Jellyfin.Plugin.MyAnimeList/banner.png publish/
+          cd publish
+          zip -j "../${{ steps.version.outputs.ZIP_NAME }}" \
+            Jellyfin.Plugin.MyAnimeList.dll \
+            FuzzierSharp.dll \
+            JikanDotNet.dll \
+            LiteDB.dll \
+            meta.json \
+            banner.png
+
+      # ── 7. Compute MD5 checksum (required by Jellyfin manifest) ────────────
+      - name: Compute MD5 checksum
+        id: checksum
+        run: |
+          MD5=$(md5sum "${{ steps.version.outputs.ZIP_NAME }}" | awk '{print $1}')
+          echo "MD5=${MD5}" >> "$GITHUB_OUTPUT"
+
+      # ── 8. Build the repository manifest ─────────────────────────────────
+      # Plugin metadata (name, description, owner, imageUrl) comes from manifest.template.json;
+      # the version history comes from the previous release's manifest.json asset. Nothing is
+      # committed back to the repo, so releases never add a bot to the commit history.
+      - name: Build manifest.json
+        run: |
+          curl -fsSL "https://github.com/${{ github.repository }}/releases/latest/download/manifest.json" -o previous-manifest.json \
+            || echo "No previous release manifest; seeding versions from manifest.template.json."
+          export VERSION="${{ steps.version.outputs.TAG_VERSION }}"
+          export JELLYFIN_VERSION="${{ steps.version.outputs.JELLYFIN_VERSION }}"
+          export CHECKSUM="${{ steps.checksum.outputs.MD5 }}"
+          export DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/${{ steps.version.outputs.ZIP_NAME }}"
+          export TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          python3 - << 'PY'
+          import json, os, re
+
+          with open("manifest.template.json", encoding="utf-8") as f:
+              manifest = json.load(f)
+
+          versions = manifest[0].get("versions", [])
+          if os.path.exists("previous-manifest.json"):
+              with open("previous-manifest.json", encoding="utf-8") as f:
+                  versions = json.load(f)[0].get("versions", [])
+
+          version = os.environ["VERSION"]
+          jellyfin_version = os.environ["JELLYFIN_VERSION"]
+
+          # This version's CHANGELOG.md section, shown on the plugin's page in Jellyfin.
+          changelog = f"Release {version}"
+          with open("CHANGELOG.md", encoding="utf-8") as f:
+              text = f.read()
+          match = re.search(rf"^## v{re.escape(version)}\s*$(.*?)(?=^## |\Z)", text, re.M | re.S)
+          if match and match.group(1).strip():
+              changelog = match.group(1).strip()
+
+          entry = {
+              "version": jellyfin_version,
+              "changelog": changelog,
+              "targetAbi": "12.0.0.0",
+              "sourceUrl": os.environ["DOWNLOAD_URL"],
+              "checksum": os.environ["CHECKSUM"],
+              "timestamp": os.environ["TIMESTAMP"],
+          }
+
+          # Newest first; replace an entry for the same version if the tag is being republished.
+          manifest[0]["versions"] = [entry] + [v for v in versions if v.get("version") not in (version, jellyfin_version)]
+
+          with open("manifest.json", "w", encoding="utf-8") as f:
+              json.dump(manifest, f, indent=2)
+              f.write("\n")
+          PY
+
+      # ── 9. Create the GitHub Release with the ZIP and manifest ───────────
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "MyAnimeList v${{ steps.version.outputs.TAG_VERSION }}"
+          generate_release_notes: true
+          files: |
+            ${{ steps.version.outputs.ZIP_NAME }}
+            manifest.json

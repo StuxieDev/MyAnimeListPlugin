@@ -1,0 +1,97 @@
+using Jellyfin.Plugin.MyAnimeList.Sync.Configuration;
+
+namespace Jellyfin.Plugin.MyAnimeList.Configuration
+{
+    /// <summary>
+    /// Determines which title version should be preferred when displaying anime.
+    /// </summary>
+    public enum TitlePreferenceType
+    {
+        Localized, Japanese, JapaneseRomaji
+    }
+
+    /// <summary>
+    /// Determines which language(s) to include when filtering people (voice actors, staff, etc.).
+    /// </summary>
+    public enum LanguageFilterType
+    {
+        Localized, Japanese, All
+    }
+
+    /// <summary>
+    /// Determines which people should be added to anime metadata.
+    /// </summary>
+    public enum PersonCreditType
+    {
+        VoiceActors,
+        Characters,
+        Both
+    }
+
+    /// <summary>
+    /// The plugin's settings: the metadata settings below, plus the sync settings
+    /// inherited from <see cref="SyncConfiguration"/>, all in one settings file.
+    /// </summary>
+    public class PluginConfiguration : SyncConfiguration
+    {
+        public PluginConfiguration()
+        {
+            PrimaryJikanUrl = "";
+            BackupJikanUrl = "";
+            TitlePreference = TitlePreferenceType.Localized;
+            OriginalTitlePreference = TitlePreferenceType.JapaneseRomaji;
+            PersonLanguageFilterPreference = LanguageFilterType.All;
+            PersonCreditPreference = PersonCreditType.VoiceActors;
+
+            MaxPeople = 0;
+            MaxGenres = 0;
+            EnableBestAttempt = false;
+            ExcludeSpecials = false;
+            UseExternalIDs = false;
+            EnableNSFW = false;
+
+            CacheBackupOtherTime = 1;
+            CacheSearchTime = 60;
+            EnableDebug = false;
+            ForceNewMetadata = false;
+
+            SeriesMetadata = new SeriesMetadataConfiguration();
+            SeasonMetadata = new SeasonMetadataConfiguration();
+            EpisodeMetadata = new EpisodeMetadataConfiguration();
+            MovieMetadata = new MovieMetadataConfiguration();
+        }
+
+        public string PrimaryJikanUrl { get; set; }
+        public string BackupJikanUrl { get; set; }
+
+        // === Title Settings ===
+        public TitlePreferenceType TitlePreference { get; set; }
+        public TitlePreferenceType OriginalTitlePreference { get; set; }
+
+        // === People & Language Filters ===
+        public LanguageFilterType PersonLanguageFilterPreference { get; set; }
+        public PersonCreditType PersonCreditPreference { get; set; }
+        public int MaxPeople { get; set; }
+        // === Metadata Options ===
+        public int MaxGenres { get; set; }
+        public bool EnableBestAttempt { get; set; }
+        public bool ExcludeSpecials { get; set; }
+        public bool DisableLocalCache { get; set; }
+        public bool UseExternalIDs { get; set; }
+        public bool EnableNSFW { get; set; }
+
+        // === Cache time ===
+        public int CacheBackupOtherTime { get; set; }
+        public int CacheSearchTime { get; set; }
+
+        // === Debugging ===
+        public bool EnableDebug { get; set; }
+        public bool ForceNewMetadata { get; set; }
+
+        // === Metadata Field Selection ===
+        public SeriesMetadataConfiguration SeriesMetadata { get; set; }
+        public SeasonMetadataConfiguration SeasonMetadata { get; set; }
+        public EpisodeMetadataConfiguration EpisodeMetadata { get; set; }
+        public MovieMetadataConfiguration MovieMetadata { get; set; }
+    }
+}

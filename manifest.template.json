@@ -1,0 +1,12 @@
+[
+  {
+    "category": "Metadata",
+    "guid": "59e2bd19-e538-478b-9509-aa0c3d25cc13",
+    "name": "MyAnimeList",
+    "description": "MyAnimeList metadata for anime series, seasons, episodes, movies and people (via the Jikan API), and watch status sync with MyAnimeList, AniList, Kitsu, Annict, Shikimori and Simkl. Built for Jellyfin 12.",
+    "overview": "Anime metadata from MyAnimeList, and watch status sync",
+    "owner": "StuxieDev",
+    "versions": [],
+    "imageUrl": "https://raw.githubusercontent.com/StuxieDev/MyAnimeListPlugin/main/Jellyfin.Plugin.MyAnimeList/banner.png"
+  }
+]

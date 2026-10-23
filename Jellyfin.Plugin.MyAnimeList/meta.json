@@ -1,0 +1,18 @@
+{
+  "category": "Metadata",
+  "guid": "59e2bd19-e538-478b-9509-aa0c3d25cc13",
+  "name": "MyAnimeList",
+  "description": "MyAnimeList metadata for anime series, seasons, episodes, movies and people (via the Jikan API), and watch status sync with MyAnimeList, AniList, Kitsu, Annict, Shikimori and Simkl. Built for Jellyfin 12.",
+  "overview": "Anime metadata from MyAnimeList, and watch status sync",
+  "owner": "StuxieDev",
+  "version": "26.10.23.0",
+  "targetAbi": "12.0.0.0",
+  "framework": "net10.0",
+  "assemblies": [
+    "Jellyfin.Plugin.MyAnimeList.dll",
+    "FuzzierSharp.dll",
+    "JikanDotNet.dll",
+    "LiteDB.dll"
+  ],
+  "imagePath": "banner.png"
+}

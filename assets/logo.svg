@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3d7bff"/>
+      <stop offset="1" stop-color="#2a3f9e"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="url(#bg)"/>
+  <!-- watch-list card -->
+  <rect x="62" y="56" width="104" height="132" rx="16" fill="#fff"/>
+  <path d="M80 92 l9 9 16-18" fill="none" stroke="#2f5fe0" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="114" y="87" width="36" height="9" rx="4.5" fill="#9fb6f5"/>
+  <path d="M80 130 l9 9 16-18" fill="none" stroke="#2f5fe0" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="114" y="125" width="36" height="9" rx="4.5" fill="#9fb6f5"/>
+  <circle cx="92" cy="166" r="7" fill="#c9d6fb"/>
+  <rect x="114" y="161" width="28" height="9" rx="4.5" fill="#c9d6fb"/>
+  <!-- sync arrows -->
+  <circle cx="178" cy="180" r="44" fill="#ff7a59"/>
+  <path d="M157 172 a23 23 0 0 1 39 -10" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round"/>
+  <path d="M199 150 l-1 15 -14 -3" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M199 188 a23 23 0 0 1 -39 10" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round"/>
+  <path d="M157 210 l1 -15 14 3" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
