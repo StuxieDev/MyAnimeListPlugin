@@ -1,19 +1,34 @@
 # Changelog
 
 All notable changes to the MyAnimeList plugin are documented here. The format is based on
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses
-[Date Versioning](https://datevers.ing) (`YY.MM.DD`, the UTC release date, with `-1`, `-2`…
-for later releases the same day). Jellyfin shows each version with a fourth part:
-`26.10.23` is `26.10.23.0`, `26.10.23-1` is `26.10.23.1`.
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The plugin is pre-stable, so it uses
+[Semantic Versioning](https://semver.org) on `0.x.y` for now. Its first stable release will be its
+first [Date Versioning](https://datevers.ing) release (`YY.MM.DD`, the UTC release date, with `-1`,
+`-2`… for later releases the same day), and every release after that will be a Date Version too.
+There will be no v1.0.0. Jellyfin shows each version with a fourth part: `0.2.0` is `0.2.0.0`
+(and later `26.10.23` would be `26.10.23.0`, `26.10.23-1` would be `26.10.23.1`).
 
-## v26.10.23-1
+## v0.2.0
 
-The first published release: v26.10.23 was tagged but never released, because a test failed while it was being built.
+### Added
+- `tests/run.sh` checks `VERSION.md`, the newest changelog heading, the version in `Directory.Build.props` and `meta.json`, and the versioning rules below. The release workflow runs it before the unit tests.
+
+### Changed
+- The plugin is pre-stable, so it's versioned with SemVer `0.x.y` until its first stable release, which will be its first [Date Versioning](https://datevers.ing) release (there will be no v1.0.0). The two earlier releases have been relabelled: v26.10.23 is now v0.1.0 and v26.10.23-1 is now v0.1.1. `commit.sh` / `commit.bat` and the release workflow accept `0.x.y` versions as well as Date Versions, and refuse `0.x.y` once a Date Version has been released.
+- In Jellyfin this release is version `0.2.0.0`. If you installed v26.10.23-1 (shown as `26.10.23.1`), Jellyfin sees that as the newer version and won't offer this one as an update: uninstall the plugin, restart, and install it again from the catalogue.
+
+## v0.1.1
+
+_Released 2026-10-23 as v26.10.23-1._
+
+The first published release: v0.1.0 was tagged but never released, because a test failed while it was being built.
 
 ### Fixed
-- A sync unit test failed at random. Its helper for making unique test IDs never remembered the IDs it gave out, so two test anime could share an ID. That stopped the v26.10.23 release from building. The plugin itself is unchanged.
+- A sync unit test failed at random. Its helper for making unique test IDs never remembered the IDs it gave out, so two test anime could share an ID. That stopped the v0.1.0 release from building. The plugin itself is unchanged.
 
-## v26.10.23
+## v0.1.0
+
+_Released 2026-10-23 as v26.10.23 (tagged, but never published; see v0.1.1)._
 
 First release of MyAnimeList as a standalone StuxieDev project, for Jellyfin 12. It joins two of ryandash's plugins into one: [jellyfin-plugin-myanimelist](https://github.com/ryandash/jellyfin-plugin-myanimelist) 12.0.0.2 (metadata) and [jellyfin-myanimelist-sync](https://github.com/ryandash/jellyfin-myanimelist-sync) 1.6.0.2 (watch status sync, itself a fork of vosmiic's [jellyfin-ani-sync](https://github.com/vosmiic/jellyfin-ani-sync)).
 

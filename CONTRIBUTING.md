@@ -42,7 +42,7 @@ The plugin compiles against the `Jellyfin.Controller` / `Jellyfin.Model` NuGet p
 
 ## Changelog
 
-Every user-facing change goes into `CHANGELOG.md` under the upcoming version. Use these section headings, in this order, and leave out any that are empty:
+Every user-facing change goes into `CHANGELOG.md` under the upcoming version (`## v0.x.y` for now). Use these section headings, in this order, and leave out any that are empty:
 
 1. `### Added`
 2. `### Changed`
@@ -53,14 +53,19 @@ Every user-facing change goes into `CHANGELOG.md` under the upcoming version. Us
 
 ## Releasing
 
-Versions follow [Date Versioning](https://datevers.ing): the UTC release date as `YY.MM.DD`, plus `-1`, `-2`… for later releases the same UTC day, and never a future date. To release:
+The plugin is pre-stable, so it's versioned with [Semantic Versioning](https://semver.org) on `0.x.y`: a release that adds or changes anything bumps the minor version (`0.2.0` → `0.3.0`), a fix-only release bumps the patch (`0.2.0` → `0.2.1`). Its first stable release won't be v1.0.0: it will be its first [Date Versioning](https://datevers.ing) release, the UTC release date as `YY.MM.DD` (plus `-1`, `-2`… for later releases the same UTC day, and never a future date), and every release after that is a Date Version too. Declaring the plugin stable is the maintainer's call. Once a Date Version has been tagged, the project never goes back to `0.x`.
 
-1. Finish the `## vYY.MM.DD` section in `CHANGELOG.md`. The release workflow copies it into the plugin's changelog in Jellyfin.
-2. Put the new version in `VERSION.md` as `YY.MM.DD` (or `YY.MM.DD-N`), and in the `version` field of `Jellyfin.Plugin.MyAnimeList/meta.json` as `YY.MM.DD.0` (or `YY.MM.DD.N`). The release workflow sets `meta.json` anyway.
+To release:
+
+1. Finish the `## v<version>` section in `CHANGELOG.md`. The release workflow copies it into the plugin's changelog in Jellyfin.
+2. Put the new version in `VERSION.md` (`0.x.y`, or later `YY.MM.DD` / `YY.MM.DD-N`), and its four-part form in `Directory.Build.props` (`Version`, `AssemblyVersion`, `FileVersion`) and the `version` field of `Jellyfin.Plugin.MyAnimeList/meta.json`: `0.x.y.0`, or later `YY.MM.DD.0` / `YY.MM.DD.N`. `bash scripts/jellyfin-version.sh` prints it. The release workflow sets these anyway.
 3. Update `README.md` if anything user-facing changed.
-4. Run `./commit.sh` (or `commit.bat` on Windows). It checks `VERSION.md` holds a real, non-future Date Version, commits everything and creates the tag `vYY.MM.DD` from it.
-5. Push with `git push origin main --tags`.
+4. Run `bash tests/run.sh` to check the versions line up.
+5. Run `./commit.sh` (or `commit.bat` on Windows). It accepts a `0.x.y` version (unless a Date Version tag already exists) or a real, non-future Date Version, and rejects anything else, including `1.x`. It commits everything and creates the tag `v<version>`.
+6. Push with `git push origin main --tags`.
 
 Pushing the tag runs `.github/workflows/release.yml`. It runs the tests, builds the plugin and publishes a GitHub Release containing the plugin zip and the repository `manifest.json`. That manifest combines the plugin details in `manifest.template.json` with the version list from the previous release, so Jellyfin always reads it from `releases/latest/download/manifest.json`. Nothing is committed back to the repo.
 
-**Why four parts in Jellyfin's files:** tags, releases, `VERSION.md` and the changelog use the Date Version (`26.10.23`, `26.10.23-1`). Jellyfin's API always reports installed plugin versions with four parts, and its plugin-image endpoint matches versions exactly, so `meta.json` and the manifest use `26.10.23.0` (or `26.10.23.1` for `-1`), or the plugin's banner won't load. .NET assembly versions can't contain `-`, so the build uses the four-part form as well.
+While the plugin is on `0.x`, the workflow drops any Date Version entries (`26.10.23.0`, `26.10.23.1`, from the releases that are now `v0.1.0` and `v0.1.1`) from that carried-over list, because Jellyfin would always rank them above every `0.x` release.
+
+**Why four parts in Jellyfin's files:** tags, releases, `VERSION.md` and the changelog use the plain version (`0.2.0`, later `26.10.23` or `26.10.23-1`). Jellyfin's API always reports installed plugin versions with four parts, and its plugin-image endpoint matches versions exactly, so `meta.json` and the manifest use `0.2.0.0` (later `26.10.23.0`, or `26.10.23.1` for `-1`), or the plugin's banner won't load. .NET assembly versions can't contain `-`, so the build uses the four-part form as well.

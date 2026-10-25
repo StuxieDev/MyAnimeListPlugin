@@ -80,6 +80,12 @@ dotnet build Jellyfin.Plugin.MyAnimeList/Jellyfin.Plugin.MyAnimeList.csproj -c R
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development, testing and release details.
 
+## Versioning
+
+The plugin is pre-stable, so it uses [Semantic Versioning](https://semver.org) on `0.x.y` (tags `v0.x.y`) for now. Its first stable release will be its first [Date Versioning](https://datevers.ing) release, tagged with the UTC release date as `vYY.MM.DD` (plus `-1`, `-2`… for later releases the same day), and every release after it will be a Date Version too. There will be no v1.0.0. Jellyfin shows versions with a fourth part, so `0.2.0` appears as `0.2.0.0`. See [CHANGELOG.md](CHANGELOG.md) for what changed in each release.
+
+The first two releases were originally tagged `v26.10.23` and `v26.10.23-1` and are now `v0.1.0` and `v0.1.1`. If you installed `v26.10.23-1` (shown in Jellyfin as `26.10.23.1`), Jellyfin won't offer the `0.x` releases as updates: uninstall the plugin, restart, and install it again from the catalogue.
+
 ## Credits
 
 Based on [jellyfin-plugin-myanimelist](https://github.com/ryandash/jellyfin-plugin-myanimelist) and [jellyfin-myanimelist-sync](https://github.com/ryandash/jellyfin-myanimelist-sync) by ryandash; the sync part is in turn a fork of [jellyfin-ani-sync](https://github.com/vosmiic/jellyfin-ani-sync) by vosmiic. Maintained by [StuxieDev](https://github.com/StuxieDev) as one standalone plugin, for Jellyfin 12. Metadata comes from [Jikan](https://jikan.moe) and [Tenrai](https://tenrai.org); not affiliated with MyAnimeList or the other list sites.

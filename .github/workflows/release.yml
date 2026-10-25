@@ -1,9 +1,11 @@
 name: Publish Release
 
-# Trigger on Date Version tags like v26.10.23 or v26.10.23-1 (https://datevers.ing)
+# Trigger on pre-stable SemVer tags like v0.2.0, and on Date Version tags like v26.10.23 or
+# v26.10.23-1 (https://datevers.ing), which the project switches to at its first stable release
 on:
   push:
     tags:
+      - 'v0.[0-9]*.[0-9]*'
       - 'v[0-9][0-9].[0-9][0-9].[0-9][0-9]'
       - 'v[0-9][0-9].[0-9][0-9].[0-9][0-9]-*'
 
@@ -23,18 +25,15 @@ jobs:
       - name: Extract version
         id: version
         run: |
-          # tag = v26.10.23    →  TAG_VERSION = 26.10.23 (tags, releases, zip name)
-          #                    →  JELLYFIN_VERSION = 26.10.23.0 (meta.json, manifest.json, assembly)
+          # tag = v0.2.0       →  TAG_VERSION = 0.2.0 (tags, releases, zip name)
+          #                    →  JELLYFIN_VERSION = 0.2.0.0 (meta.json, manifest.json, assembly)
+          # tag = v26.10.23    →  TAG_VERSION = 26.10.23, JELLYFIN_VERSION = 26.10.23.0
           # tag = v26.10.23-1  →  TAG_VERSION = 26.10.23-1, JELLYFIN_VERSION = 26.10.23.1
-          # Jellyfin's API always reports installed plugin versions with four parts and its plugin-image
-          # lookup compares versions exactly, so a three-part meta.json version makes the banner 404.
-          # Assembly versions can't contain "-", so the build uses the four-part form too.
+          # scripts/jellyfin-version.sh does the mapping and fails on any other tag.
           TAG="${GITHUB_REF#refs/tags/v}"
-          DATE="${TAG%%-*}"
-          SAME_DAY=0
-          if [[ "$TAG" == *-* ]]; then SAME_DAY="${TAG#*-}"; fi
+          JELLYFIN_VERSION="$(bash scripts/jellyfin-version.sh "$TAG")"
           echo "TAG_VERSION=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "JELLYFIN_VERSION=${DATE}.${SAME_DAY}" >> "$GITHUB_OUTPUT"
+          echo "JELLYFIN_VERSION=${JELLYFIN_VERSION}" >> "$GITHUB_OUTPUT"
           echo "ZIP_NAME=jellyfin-myanimelist_${TAG}.zip" >> "$GITHUB_OUTPUT"
 
       # ── 3. Patch the version in meta.json before building ──────────────────
@@ -61,7 +60,9 @@ jobs:
 
       # ── 5. Unit tests (all but MyAnimeListTests, which call the live Jikan API) ──
       - name: Run tests
-        run: dotnet test TestProject/TestProject.csproj -c Release --filter "FullyQualifiedName!~UnitTestProject.MyAnimeListTests"
+        run: |
+          bash tests/run.sh
+          dotnet test TestProject/TestProject.csproj -c Release --filter "FullyQualifiedName!~UnitTestProject.MyAnimeListTests"
 
       # ── 5b. Build & publish (Release) ──────────────────────────────────────
       - name: Publish plugin
@@ -140,6 +141,12 @@ jobs:
               "checksum": os.environ["CHECKSUM"],
               "timestamp": os.environ["TIMESTAMP"],
           }
+
+          # While pre-stable (0.x), drop Date Version entries carried over from the previous manifest:
+          # 26.10.23.0 and 26.10.23.1 were relabelled 0.1.0 and 0.1.1, and Jellyfin would otherwise
+          # always rank them above every 0.x release.
+          if jellyfin_version.startswith("0."):
+              versions = [v for v in versions if str(v.get("version", "")).startswith("0.")]
 
           # Newest first; replace an entry for the same version if the tag is being republished.
           manifest[0]["versions"] = [entry] + [v for v in versions if v.get("version") not in (version, jellyfin_version)]
