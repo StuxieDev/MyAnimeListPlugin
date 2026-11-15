@@ -3,12 +3,23 @@ setlocal
 REM MyAnimeList - Git commit + tag script (Windows)
 REM Commits whatever's staged/unstaged and tags it with the version
 REM currently in VERSION.md, read dynamically so this script never goes
-REM stale the way a hardcoded version number does. Pushing the tag
-REM triggers the release workflow.
+REM stale the way a hardcoded version number does. Merging the
+REM release into main publishes it.
 
 set "DIR=%~dp0"
 set /p VERSION=<"%DIR%VERSION.md"
 cd /d "%DIR%"
+
+REM Releases are made on test (or a branch off it). staging and main only change through
+REM pull requests: test -> staging -> main.
+for /f "delims=" %%b in ('git -C "%DIR%." rev-parse --abbrev-ref HEAD') do set "BRANCH=%%b"
+if "%BRANCH%"=="main" goto wrongbranch
+if "%BRANCH%"=="staging" goto wrongbranch
+goto branchok
+:wrongbranch
+echo You're on %BRANCH%. Releases are made on test, then go test -^> staging -^> main through pull requests: git switch test
+exit /b 1
+:branchok
 
 REM Pre-stable releases use SemVer 0.x.y. The first stable release (there is no v1.0.0) and every one
 REM after it use Date Versioning (https://datevers.ing): the UTC release date as YY.MM.DD, plus -1, -2...
@@ -43,4 +54,6 @@ if errorlevel 1 (
     echo Tag v%VERSION% already exists - skipping.
 )
 
-echo Push with: git push origin main --tags
+echo Push with: git push origin %BRANCH% --tags
+echo Then open a pull request into staging: gh pr create --base staging --head %BRANCH%
+echo Once staging is checked, open one from staging into main: gh pr create --base main --head staging

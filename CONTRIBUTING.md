@@ -51,6 +51,19 @@ Every user-facing change goes into `CHANGELOG.md` under the upcoming version (`#
 5. `### Security`
 6. `### Deprecated`
 
+## Branches and going live
+
+- **`main` is what's live.** Nothing is pushed to it directly: it only changes when a pull request from `staging` is
+  merged, and GitHub protects it so that can't be skipped. When a release reaches `main`, the release workflow
+  publishes it to Jellyfin.
+- **`staging` is the last check before live.** Nothing is pushed to it directly either: it only changes when a pull
+  request from `test` is merged.
+- **Work happens on `test`**, or on a branch off `test` that's merged back into it. Pull requests go into `test`.
+  Releases are made on `test` too: `commit.sh` / `commit.bat` refuse to run on `staging` or `main`.
+- **Going live:** push `test` with its tag, open a pull request into staging (`gh pr create --base staging --head
+  test`), check staging once it's merged, then open one from staging into main (`gh pr create --base main --head
+  staging`). The commit script prints these commands after tagging.
+
 ## Releasing
 
 The plugin is pre-stable, so it's versioned with [Semantic Versioning](https://semver.org) on `0.x.y`: a release that adds or changes anything bumps the minor version (`0.2.0` → `0.3.0`), a fix-only release bumps the patch (`0.2.0` → `0.2.1`). Its first stable release won't be v1.0.0: it will be its first [Date Versioning](https://datevers.ing) release, the UTC release date as `YY.MM.DD` (plus `-1`, `-2`… for later releases the same UTC day, and never a future date), and every release after that is a Date Version too. Declaring the plugin stable is the maintainer's call. Once a Date Version has been tagged, the project never goes back to `0.x`.
@@ -62,9 +75,10 @@ To release:
 3. Update `README.md` if anything user-facing changed.
 4. Run `bash tests/run.sh` to check the versions line up.
 5. Run `./commit.sh` (or `commit.bat` on Windows). It accepts a `0.x.y` version (unless a Date Version tag already exists) or a real, non-future Date Version, and rejects anything else, including `1.x`. It commits everything and creates the tag `v<version>`.
-6. Push with `git push origin main --tags`.
+6. Push with `git push origin test --tags`, then open a pull request from `test` into `staging`, and once staging is
+   checked one from `staging` into `main` (see Branches and going live).
 
-Pushing the tag runs `.github/workflows/release.yml`. It runs the tests, builds the plugin and publishes a GitHub Release containing the plugin zip and the repository `manifest.json`. That manifest combines the plugin details in `manifest.template.json` with the version list from the previous release, so Jellyfin always reads it from `releases/latest/download/manifest.json`. Nothing is committed back to the repo.
+Pushing the tag publishes nothing yet. Once the release is merged into `main`, `.github/workflows/release.yml` builds that tag. It runs the tests, builds the plugin and publishes a GitHub Release containing the plugin zip and the repository `manifest.json`. That manifest combines the plugin details in `manifest.template.json` with the version list from the previous release, so Jellyfin always reads it from `releases/latest/download/manifest.json`. Nothing is committed back to the repo.
 
 While the plugin is on `0.x`, the workflow drops any Date Version entries (`26.10.23.0`, `26.10.23.1`, from the releases that are now `v0.1.0` and `v0.1.1`) from that carried-over list, because Jellyfin would always rank them above every `0.x` release.
 
