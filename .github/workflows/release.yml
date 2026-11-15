@@ -1,27 +1,57 @@
 name: Publish Release
 
-# Trigger on pre-stable SemVer tags like v0.2.0, and on Date Version tags like v26.10.23 or
-# v26.10.23-1 (https://datevers.ing), which the project switches to at its first stable release
+# Publishes the version in VERSION.md once it reaches main (test -> staging -> main), building the
+# v<version> tag that commit.sh created for it on test. Pushing that tag publishes nothing, and a
+# merge into main whose version already has a GitHub Release is skipped. Versions are pre-stable
+# SemVer like v0.2.0, or later Date Versions like v26.10.23 or v26.10.23-1 (https://datevers.ing).
 on:
   push:
-    tags:
-      - 'v0.[0-9]*.[0-9]*'
-      - 'v[0-9][0-9].[0-9][0-9].[0-9][0-9]'
-      - 'v[0-9][0-9].[0-9][0-9].[0-9][0-9]-*'
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: write  # needed to create releases
 
 jobs:
-  release:
+  check:
     runs-on: ubuntu-latest
-
+    outputs:
+      publish: ${{ steps.check.outputs.PUBLISH }}
+      version: ${{ steps.check.outputs.VERSION }}
     steps:
-      # ── 1. Checkout ─────────────────────────────────────────────────────
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ── 2. Derive version from the pushed tag ──────────────────────────────
+      - name: Is VERSION.md's version released yet?
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V="$(tr -d '[:space:]' < VERSION.md)"
+          echo "VERSION=${V}" >> "$GITHUB_OUTPUT"
+          if gh release view "v${V}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "v${V} already has a release, so there's nothing to publish."
+            echo "PUBLISH=false" >> "$GITHUB_OUTPUT"
+          elif [ -z "$(git ls-remote --tags origin "refs/tags/v${V}")" ]; then
+            echo "::error::VERSION.md is ${V}, but there's no v${V} tag. Run commit.sh on test and push it with --tags."
+            exit 1
+          else
+            echo "PUBLISH=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  release:
+    needs: check
+    if: needs.check.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout the release's tag ──────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.check.outputs.version }}
+
+      # ── 2. Derive version from VERSION.md ─────────────────────────────────
       - name: Extract version
         id: version
         run: |
@@ -30,7 +60,7 @@ jobs:
           # tag = v26.10.23    →  TAG_VERSION = 26.10.23, JELLYFIN_VERSION = 26.10.23.0
           # tag = v26.10.23-1  →  TAG_VERSION = 26.10.23-1, JELLYFIN_VERSION = 26.10.23.1
           # scripts/jellyfin-version.sh does the mapping and fails on any other tag.
-          TAG="${GITHUB_REF#refs/tags/v}"
+          TAG="${{ needs.check.outputs.version }}"
           JELLYFIN_VERSION="$(bash scripts/jellyfin-version.sh "$TAG")"
           echo "TAG_VERSION=${TAG}" >> "$GITHUB_OUTPUT"
           echo "JELLYFIN_VERSION=${JELLYFIN_VERSION}" >> "$GITHUB_OUTPUT"
@@ -108,7 +138,7 @@ jobs:
           export VERSION="${{ steps.version.outputs.TAG_VERSION }}"
           export JELLYFIN_VERSION="${{ steps.version.outputs.JELLYFIN_VERSION }}"
           export CHECKSUM="${{ steps.checksum.outputs.MD5 }}"
-          export DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/${{ steps.version.outputs.ZIP_NAME }}"
+          export DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.TAG_VERSION }}/${{ steps.version.outputs.ZIP_NAME }}"
           export TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
           python3 - << 'PY'
@@ -160,6 +190,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ steps.version.outputs.TAG_VERSION }}
           name: "MyAnimeList v${{ steps.version.outputs.TAG_VERSION }}"
           generate_release_notes: true
           files: |
